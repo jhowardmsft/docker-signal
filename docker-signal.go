@@ -4,6 +4,7 @@ package main
 // on on Windows to either dump its stacks or it's debugger event.
 // Works across dockerd.exe; containerd.exe; containerd-shim-runhcs-v1.exe
 // Flags: -pid=daemonpid [-debugger]
+// For docker engine 18.09 and below Flags: -pid=daemonpid -legacy
 
 // go build -o signal-event.exe
 
@@ -49,17 +50,25 @@ func main() {
 	var (
 		pid      int
 		debugger bool
+		legacy   bool
 	)
 	flag.BoolVar(&debugger, "debugger", false, "Signal a debugger event rather than stackdump.")
+	flag.BoolVar(&legacy, "legacy", false, "Trigger a stackdump for 18.09 and below docker engine")
 	flag.IntVar(&pid, "pid", -1, "PID of process to signal")
 	flag.Parse()
 	if pid == -1 {
 		fmt.Println("Error: pid must be supplied")
 		return
 	}
+	if debugger && legacy {
+		fmt.Println("Error: debugger is not available on legacy platforms")
+		return
+	}
 	key := "stackdump"
 	if debugger {
 		key = "debugger"
+	} else if legacy {
+		key = "docker-daemon"
 	}
 
 	ev := fmt.Sprintf("Global\\%s-%s", key, fmt.Sprint(pid))
